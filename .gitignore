@@ -11,6 +11,8 @@ captures/
 # Build çıktıları
 build/
 app/build/
+app/release/
+.kotlin/
 
 # Sistem ve Geçici dosyalar
 *.log
@@ -19,4 +21,9 @@ app/build/
 # Keystore (Güvenlik için kritik)
 *.keystore
 *.jks
-*.pepk
+*.pepk*.jks
+*.keystore
+local.properties
+
+.claude
+docs/

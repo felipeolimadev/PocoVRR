@@ -3,6 +3,15 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Signing material: environment variables (CI) take priority, local.properties is the
+// local fallback. local.properties is gitignored and must never be committed.
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+def secret = { String key -> System.getenv(key) ?: localProps.getProperty(key) }
+
 android {
     compileSdk 34
     namespace "com.zewzack.pocovrr"
@@ -11,8 +20,37 @@ android {
         applicationId "com.zewzack.pocovrr"
         minSdk 31          // Android 12+ (HyperOS 3 gereksinimi)
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        // CI passes -PappVersionCode / -PappVersionName derived from the git tag.
+        // Local builds fall back to the values below.
+        versionCode project.hasProperty('appVersionCode') ? project.appVersionCode.toInteger() : 1
+        versionName project.hasProperty('appVersionName') ? project.appVersionName : "1.0"
+
+        lint {
+            checkReleaseBuilds false
+        }
+    }
+
+    // Declared before buildTypes so signingConfigs.release resolves below.
+    signingConfigs {
+        release {
+            def storePath = secret("KEYSTORE_FILE")
+            // Guarded: without a keystore the release config stays unconfigured instead of
+            // failing configuration, so debug builds and ./gradlew tasks still work.
+            if (storePath) {
+                storeFile file(storePath)
+                storePassword secret("KEYSTORE_PASSWORD")
+                keyAlias secret("KEY_ALIAS")
+                keyPassword secret("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
     }
 
     buildFeatures {
